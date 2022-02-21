@@ -1,15 +1,7 @@
 var Client = require('castv2-client').Client;
 var DefaultMediaReceiver = require('castv2-client').DefaultMediaReceiver;
-var mdns = require('mdns');
-var browser = mdns.createBrowser(mdns.tcp('googlecast'));
 var deviceAddress;
 var language;
-
-var device = function(name, lang = 'en') {
-    device = name;
-    language = lang;
-    return this;
-};
 
 var ip = function(ip, lang = 'en') {
   deviceAddress = ip;
@@ -17,56 +9,23 @@ var ip = function(ip, lang = 'en') {
   return this;
 }
 
-var googletts = require('google-tts-api');
-var googlettsaccent = 'us';
-var accent = function(accent) {
-  googlettsaccent = accent;
-  return this;
-}
+var googleTTS = require('google-tts-api');
 
-var notify = function(message, callback) {
-  if (!deviceAddress){
-    browser.start();
-    browser.on('serviceUp', function(service) {
-      console.log('Device "%s" at %s:%d', service.name, service.addresses[0], service.port);
-      if (service.name.includes(device.replace(' ', '-'))){
-        deviceAddress = service.addresses[0];
-        getSpeechUrl(message, deviceAddress, function(res) {
-          callback(res);
-        });
-      }
-      browser.stop();
-    });
-  }else {
-    getSpeechUrl(message, deviceAddress, function(res) {
-      callback(res);
-    });
-  }
+var notify = function(message, level, callback) {
+  getSpeechUrl(message, deviceAddress, level, function(res) {
+    callback(res);
+  });
 };
 
-var play = function(mp3_url, callback) {
-  if (!deviceAddress){
-    browser.start();
-    browser.on('serviceUp', function(service) {
-      console.log('Device "%s" at %s:%d', service.name, service.addresses[0], service.port);
-      if (service.name.includes(device.replace(' ', '-'))){
-        deviceAddress = service.addresses[0];
-        getPlayUrl(mp3_url, deviceAddress, function(res) {
-          callback(res);
-        });
-      }
-      browser.stop();
-    });
-  }else {
-    getPlayUrl(mp3_url, deviceAddress, function(res) {
-      callback(res);
-    });
-  }
+var play = function(mp3_url, level, callback) {
+  getPlayUrl(mp3_url, deviceAddress, level, function(res) {
+    callback(res);
+  });
 };
 
-var getSpeechUrl = function(text, host, callback) {
-  googletts(text, language, 1, 1000, googlettsaccent).then(function (url) {
-    onDeviceUp(host, url, function(res){
+var getSpeechUrl = function(text, host, level, callback) {
+  googleTTS(text, language, 1).then(function (url) {
+    onDeviceUp(host, url, level, function(res){
       callback(res)
     });
   }).catch(function (err) {
@@ -74,15 +33,16 @@ var getSpeechUrl = function(text, host, callback) {
   });
 };
 
-var getPlayUrl = function(url, host, callback) {
-    onDeviceUp(host, url, function(res){
+var getPlayUrl = function(url, host, level, callback) {
+    onDeviceUp(host, url, level, function(res){
       callback(res)
     });
 };
 
-var onDeviceUp = function(host, url, callback) {
+var onDeviceUp = function(host, url, level, callback) {
   var client = new Client();
   client.connect(host, function() {
+    client.setVolume({ level }, function(err, newVol) { });
     client.launch(DefaultMediaReceiver, function(err, player) {
 
       var media = {
@@ -105,7 +65,5 @@ var onDeviceUp = function(host, url, callback) {
 };
 
 exports.ip = ip;
-exports.device = device;
-exports.accent = accent;
 exports.notify = notify;
 exports.play = play;
